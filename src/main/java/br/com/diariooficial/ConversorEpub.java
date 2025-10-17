@@ -9,29 +9,20 @@ import org.jsoup.safety.Cleaner;
 import org.jsoup.safety.Safelist;
 import org.jsoup.select.Elements;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.HashMap;
+import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 
 public class ConversorEpub {
 
+    public void gerar(String htmlProcessado, byte[] capaPrincipalBytes) throws IOException {
 
-    public void gerar(String htmlProcessado) throws IOException {
-        Map<String, String> mapaDeCapas = new HashMap<>();
-        mapaDeCapas.put("atos do executivo", "2.png");
-        mapaDeCapas.put("concursos", "3.png");
-        mapaDeCapas.put("editais", "4.png");
-        mapaDeCapas.put("negócios", "5.png");
-        mapaDeCapas.put("servidores", "6.png");
-        mapaDeCapas.put("atos da cmsp", "7.png");
-        mapaDeCapas.put("atos do tcm-sp", "8.png");
+        Map<String, String> mapaDeCapas = CapaProvider.getMapaDeCapas();
 
         Book livro = new Book();
         Metadata metadata = livro.getMetadata();
@@ -44,11 +35,10 @@ public class ConversorEpub {
         metadata.getDates().add(new Date(java.util.Date.from(hoje.atStartOfDay(ZoneId.systemDefault()).toInstant()), Date.Event.PUBLICATION));
         metadata.setLanguage("pt-BR");
 
-        File arquivoCapaPrincipal = new File("Capas/1.png");
-        if (arquivoCapaPrincipal.exists()) {
-            Resource coverResource = new Resource(new FileInputStream(arquivoCapaPrincipal), "cover.png");
+        if (capaPrincipalBytes != null && capaPrincipalBytes.length > 0) {
+            Resource coverResource = new Resource(capaPrincipalBytes, "cover.png");
             livro.setCoverImage(coverResource);
-            System.out.println("Capa principal '1.png' adicionada aos metadados.");
+            System.out.println("Capa principal dinâmica adicionada aos metadados.");
 
             String coverPageContent = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
                     "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">" +
@@ -62,7 +52,7 @@ public class ConversorEpub {
             livro.addSection("Capa Principal", coverPageResource);
             System.out.println("Página de capa principal (cover.xhtml) adicionada.");
         } else {
-            System.out.println("\n Aviso: Arquivo da capa principal 'Capas/1.png' não encontrado.");
+            System.out.println("\n Aviso: Nenhum dado de imagem fornecido para a capa principal.");
         }
 
         System.out.println("\n--- Criando Página de Editorial ---");
@@ -110,21 +100,22 @@ public class ConversorEpub {
 
             Resource capaSecaoPageResource = null;
             String h1TextoNormalizado = h1.text().toLowerCase();
-            String nomeArquivoCapa = null;
+            String nomeArquivoTxtCapa = null;
 
             for (Map.Entry<String, String> entry : mapaDeCapas.entrySet()) {
                 if (h1TextoNormalizado.contains(entry.getKey())) {
-                    nomeArquivoCapa = entry.getValue();
+                    nomeArquivoTxtCapa = entry.getValue();
                     break;
                 }
             }
 
-            if (nomeArquivoCapa != null) {
-                File arquivoCapaSecao = new File("Capas/" + nomeArquivoCapa);
+            if (nomeArquivoTxtCapa != null) {
+                try {
+                    String capaSecaoBase64 = CapaProvider.getCapaSecaoBase64(nomeArquivoTxtCapa);
+                    byte[] capaSecaoBytes = Base64.getDecoder().decode(capaSecaoBase64);
 
-                if (arquivoCapaSecao.exists()) {
                     String epubCapaHref = "capa_secao_" + sectionCounter + ".png";
-                    Resource capaSecaoResource = new Resource(new FileInputStream(arquivoCapaSecao), epubCapaHref);
+                    Resource capaSecaoResource = new Resource(capaSecaoBytes, epubCapaHref);
                     livro.addResource(capaSecaoResource);
 
                     String capaSecaoPageContent = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
@@ -136,14 +127,17 @@ public class ConversorEpub {
                     capaSecaoPageResource = new Resource(capaSecaoPageContent.getBytes(StandardCharsets.UTF_8), "pagina_capa_secao_" + sectionCounter + ".xhtml");
                     livro.addResource(capaSecaoPageResource);
                     livro.getSpine().addResource(capaSecaoPageResource);
-                    System.out.println("Capa '" + nomeArquivoCapa + "' adicionada para a seção '" + h1.text() + "'.");
-                } else {
-                    System.out.println("Aviso: Capa '" + nomeArquivoCapa + "' mapeada, mas arquivo não encontrado em 'Capas/'.");
+                    System.out.println("Capa da seção '" + h1.text() + "' adicionada via Base64.");
+
+                } catch (Exception e) {
+                    System.err.println("Falha ao processar a capa da seção do arquivo: " + nomeArquivoTxtCapa);
+                    e.printStackTrace();
                 }
             } else {
                 System.out.println("Aviso: Nenhuma capa mapeada para a seção '" + h1.text() + "'.");
             }
 
+            // O restante do código abaixo não precisa de alterações
             StringBuilder sectionHtmlBuilder = new StringBuilder();
             sectionHtmlBuilder.append(h1.outerHtml());
             Element nextElement = h1.nextElementSibling();
@@ -218,12 +212,11 @@ public class ConversorEpub {
                     System.out.println("TOC Principal: Adicionado H2 -> " + h2.text());
                 }
             }
-
             sectionCounter++;
         }
 
         EpubWriter epubWriter = new EpubWriter();
-        epubWriter.write(livro, new FileOutputStream("teste.epub"));
+        epubWriter.write(livro, new FileOutputStream("diario_final.epub"));
         System.out.println("\nEPUB gerado com sucesso: teste.epub");
     }
 
