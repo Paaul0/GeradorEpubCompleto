@@ -61,6 +61,7 @@ public class ConversorEpub {
         Resource editorialResource = new Resource(conteudoEditorial.getBytes(StandardCharsets.UTF_8), "editorial.xhtml");
         livro.addResource(editorialResource);
         livro.getSpine().addResource(editorialResource);
+        livro.getTableOfContents().addTOCReference(new TOCReference("Editorial", editorialResource));
         System.out.println("Página de editorial adicionada com sucesso.");
 
         Document doc = Jsoup.parse(htmlProcessado);
@@ -137,7 +138,6 @@ public class ConversorEpub {
                 System.out.println("Aviso: Nenhuma capa mapeada para a seção '" + h1.text() + "'.");
             }
 
-            // O restante do código abaixo não precisa de alterações
             StringBuilder sectionHtmlBuilder = new StringBuilder();
             sectionHtmlBuilder.append(h1.outerHtml());
             Element nextElement = h1.nextElementSibling();
@@ -195,21 +195,20 @@ public class ConversorEpub {
             livro.getSpine().addResource(secaoResource);
             System.out.println("Conteúdo da seção adicionado como '" + secaoHref + "'.");
 
-            TOCReference h1Ref;
+            TOCReference contentRef = new TOCReference("Conteúdo: " + h1.text(), secaoResource);
+            toc.addTOCReference(contentRef);
+            System.out.println("TOC: Added MAIN entry '" + contentRef.getTitle() + "' -> Content Page (" + secaoResource.getHref() + ")");
+
             if (capaSecaoPageResource != null) {
-                h1Ref = new TOCReference(h1.text(), capaSecaoPageResource);
-                System.out.println("TOC Principal: Link do H1 '" + h1.text() + "' aponta para a capa da seção.");
-            } else {
-                h1Ref = new TOCReference(h1.text(), secaoResource, h1.id());
-                System.out.println("TOC Principal: Link do H1 '" + h1.text() + "' aponta para o conteúdo (sem capa).");
+                TOCReference coverRef = new TOCReference("Capa: " + h1.text(), capaSecaoPageResource);
+                toc.addTOCReference(coverRef);
+                System.out.println("TOC: Added SEPARATE entry for '" + coverRef.getTitle() + "' -> Cover Page (" + capaSecaoPageResource.getHref() + ")");
             }
-            toc.addTOCReference(h1Ref);
-            System.out.println("TOC Principal: Adicionado H1 -> " + h1.text());
 
             for (Element h2 : h2sInSection) {
                 if (!h2.text().equalsIgnoreCase(h1.text())) {
-                    h1Ref.getChildren().add(new TOCReference(h2.text(), secaoResource, h2.attr("id")));
-                    System.out.println("TOC Principal: Adicionado H2 -> " + h2.text());
+                    contentRef.getChildren().add(new TOCReference(h2.text(), secaoResource, h2.attr("id")));
+                    System.out.println("TOC: Added H2 -> " + h2.text() + " under CONTENT entry '" + contentRef.getTitle() + "'");
                 }
             }
             sectionCounter++;

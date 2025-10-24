@@ -15,7 +15,6 @@ public class GeradorPaginaEditorial {
 
     // Este método faz todo o trabalho de montar e retornar o HTML
     public String gerarHtml() {
-        // Formata a data para um padrão amigável em português
         DateTimeFormatter formatador = DateTimeFormatter.ofPattern("dd 'de' MMMM 'de' yyyy", new Locale("pt", "BR"));
         String dataFormatada = dataDeGeracao.format(formatador);
 

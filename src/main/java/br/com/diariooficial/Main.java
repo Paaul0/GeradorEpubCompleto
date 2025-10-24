@@ -31,13 +31,11 @@ public class Main {
             String htmlComImagens = processador.executar();
             System.out.println("--- ETAPA 1 CONCLUÍDA ---\n");
 
-            // --- NOVO CÓDIGO ADICIONADO AQUI ---
             System.out.println("--- INICIANDO ETAPA 1.5: Salvando o HTML Processado ---");
             Path caminhoSaidaHtml = Paths.get("diario_final.html");
             Files.writeString(caminhoSaidaHtml, htmlComImagens, StandardCharsets.UTF_8);
             System.out.println(">>> SUCESSO: O HTML processado foi salvo em: " + caminhoSaidaHtml.toAbsolutePath());
             System.out.println("--- ETAPA 1.5 CONCLUÍDA ---\n");
-            // --- FIM DO NOVO CÓDIGO ---
 
             System.out.println("--- INICIANDO ETAPA 2: Geração do Arquivo EPUB ---");
             ConversorEpub conversor = new ConversorEpub();
